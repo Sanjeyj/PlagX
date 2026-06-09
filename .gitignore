@@ -1,0 +1,55 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+backend/venv/
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints
+
+# Next.js build and cache
+.next/
+frontend/.next/
+out/
+.docusaurus/
+.cache/
+*.tsbuildinfo
+
+# Environment variables (sensitive files)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+backend/.env
+
+# SQLite / databases / storage
+*.db
+*.sqlite
+*.sqlite3
+backend/plagx.db
+backend/vector_db/*
+!backend/vector_db/.gitkeep
+
+# Uploads & Reports (ignore files, keep directories)
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/reports/*
+!backend/reports/.gitkeep
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.DS_Store
+Thumbs.db
+.gemini/
+*.log

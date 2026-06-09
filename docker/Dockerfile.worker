@@ -1,0 +1,22 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    tesseract-ocr \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+RUN python -m spacy download en_core_web_sm || true
+
+# Pre-download sentence-transformer model
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+
+COPY . .
+
+RUN mkdir -p uploads reports vector_db
+
+CMD ["celery", "-A", "app.tasks.plagiarism:celery_app", "worker", "--loglevel=info", "--concurrency=2"]

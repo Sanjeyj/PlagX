@@ -1,0 +1,90 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: plagx
+      POSTGRES_USER: plagx
+      POSTGRES_PASSWORD: plagx_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U plagx"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://plagx:plagx_secret@postgres:5432/plagx
+      DATABASE_URL_SYNC: postgresql://plagx:plagx_secret@postgres:5432/plagx
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      JWT_SECRET_KEY: production-secret-change-me
+      CORS_ORIGINS: http://localhost:3000
+      DEBUG: "false"
+    volumes:
+      - uploads:/app/uploads
+      - reports:/app/reports
+      - vectordb:/app/vector_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.worker
+    environment:
+      DATABASE_URL: postgresql+asyncpg://plagx:plagx_secret@postgres:5432/plagx
+      DATABASE_URL_SYNC: postgresql://plagx:plagx_secret@postgres:5432/plagx
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    volumes:
+      - uploads:/app/uploads
+      - reports:/app/reports
+      - vectordb:/app/vector_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/Dockerfile.frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  uploads:
+  reports:
+  vectordb:

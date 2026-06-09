@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PlagX Similarity Report</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    color: #1f2937;
+    background: #ffffff;
+    line-height: 1.6;
+  }
+
+  .page-break { page-break-after: always; }
+
+  /* === COVER PAGE === */
+  .cover-page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 60px 40px;
+    background: #f9fafb;
+    border-bottom: 2px solid #e5e7eb;
+  }
+
+  .cover-header {
+    margin-bottom: 40px;
+  }
+
+  .cover-title {
+    font-size: 28px;
+    font-weight: 800;
+    color: #111827;
+    letter-spacing: -0.5px;
+  }
+
+  .cover-subtitle {
+    font-size: 13px;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-top: 4px;
+  }
+
+  .cover-score-ring {
+    width: 180px; height: 180px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; flex-direction: column;
+    margin: 0 auto 40px;
+    border: 12px solid #e5e7eb;
+  }
+
+  .score-value { font-size: 48px; font-weight: 800; line-height: 1; }
+  .score-label { font-size: 11px; color: #6b7280; margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+  
+  .risk-none { border-color: #3b82f6; }
+  .risk-none .score-value { color: #3b82f6; }
+  .risk-low { border-color: #22c55e; }
+  .risk-low .score-value { color: #22c55e; }
+  .risk-moderate { border-color: #eab308; }
+  .risk-moderate .score-value { color: #eab308; }
+  .risk-significant { border-color: #f97316; }
+  .risk-significant .score-value { color: #f97316; }
+  .risk-high { border-color: #ef4444; }
+  .risk-high .score-value { color: #ef4444; }
+
+  .cover-doc-title { font-size: 22px; font-weight: 600; color: #111827; margin-bottom: 30px; max-width: 600px; }
+
+  .cover-meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 500px; width: 100%; }
+  .meta-item { text-align: center; padding: 16px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; }
+  .meta-value { font-size: 18px; font-weight: 700; color: #111827; }
+  .meta-label { font-size: 10px; color: #6b7280; text-transform: uppercase; letter-spacing: 1px; margin-top: 4px; }
+
+  .cover-footer { margin-top: 60px; font-size: 11px; color: #9ca3af; }
+
+  /* === SECTION === */
+  .section { padding: 40px; }
+  .section-title { font-size: 18px; font-weight: 700; color: #111827; margin-bottom: 20px; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb; }
+
+  /* === SOURCES PANEL === */
+  .sources-panel { margin-bottom: 30px; }
+  .source-item {
+    display: flex; align-items: center; padding: 10px 14px;
+    border-left: 4px solid; margin-bottom: 6px;
+    background: #f9fafb; border-radius: 0 6px 6px 0;
+  }
+  .source-color { width: 10px; height: 10px; border-radius: 50%; margin-right: 12px; flex-shrink: 0; }
+  .source-name { flex: 1; font-size: 13px; color: #374151; }
+  .source-pct { font-weight: 700; font-size: 13px; }
+
+  /* === DOCUMENT VIEWER === */
+  .document-viewer { padding: 40px; }
+  .viewer-title { font-size: 18px; font-weight: 700; color: #111827; margin-bottom: 20px; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb; }
+
+  .doc-paragraph {
+    margin: 0.8em 0;
+    line-height: 1.8;
+    font-size: 13px;
+    color: #374151;
+    position: relative;
+  }
+
+  sup { font-size: 8px; vertical-align: super; line-height: 0; }
+
+  /* === FOOTER === */
+  .report-footer {
+    padding: 20px 40px;
+    font-size: 10px;
+    color: #9ca3af;
+    text-align: center;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  @media print {
+    .page-break { page-break-after: always; }
+    body { font-size: 11px; }
+    .cover-page { min-height: auto; padding: 40px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- COVER PAGE -->
+<div class="cover-page">
+  <div class="cover-header">
+    <div class="cover-title">PlagX Similarity Report</div>
+    <div class="cover-subtitle">Academic Integrity Intelligence</div>
+  </div>
+
+  <div class="cover-score-ring risk-{{ risk_level }}">
+    <div class="score-value">{{ overall_score }}%</div>
+    <div class="score-label">Similarity Index</div>
+  </div>
+
+  <div class="cover-doc-title">{{ document_name }}</div>
+
+  <div class="cover-meta">
+    <div class="meta-item">
+      <div class="meta-value">{{ total_words }}</div>
+      <div class="meta-label">Words Analyzed</div>
+    </div>
+    <div class="meta-item">
+      <div class="meta-value">{{ total_sources }}</div>
+      <div class="meta-label">Sources Found</div>
+    </div>
+    <div class="meta-item">
+      <div class="meta-value">{{ total_pages }}</div>
+      <div class="meta-label">Total Pages</div>
+    </div>
+  </div>
+
+  <div class="cover-footer">
+    Report ID: {{ report_id }} &bull; Generated on {{ report_date }} &bull; PlagX Integrity Engine
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- SIMILARITY SOURCES (TOP 10 DISPLAYED) -->
+<div class="section">
+  <div class="section-title">Primary Source Attribution</div>
+  <div class="sources-panel">
+    {{ sources_html | safe }}
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- DOCUMENT CONTENT WITH HIGHLIGHTS -->
+<div class="document-viewer">
+  <div class="viewer-title">Similarity Highlight Viewer</div>
+  <div class="document-content">
+    {{ highlighted_html | safe }}
+  </div>
+</div>
+
+<div class="report-footer">
+  &copy; {{ year }} PlagX. Academic similarity verification report. Confidential.
+</div>
+
+</body>
+</html>

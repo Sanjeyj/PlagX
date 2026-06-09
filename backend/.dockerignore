@@ -1,0 +1,9 @@
+venv/
+__pycache__/
+*.pyc
+plagx.db
+uploads/
+reports/
+vector_db/
+.env
+.pytest_cache/
