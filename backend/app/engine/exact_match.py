@@ -8,6 +8,9 @@ import logging
 import hashlib
 from collections import defaultdict
 from dataclasses import dataclass
+from typing import List, Tuple, Optional
+
+from app.engine.config import ExactMatchConfig, default_config
 
 logger = logging.getLogger(__name__)
 
@@ -35,11 +38,17 @@ class ExactMatchEngine:
     detecting verbatim or near-verbatim copied text.
     """
 
-    def __init__(self, ngram_size: int = 5, min_match_words: int = 8):
-        self.ngram_size = ngram_size
-        self.min_match_words = min_match_words
+    def __init__(
+        self,
+        ngram_size: Optional[int] = None,
+        min_match_words: Optional[int] = None,
+        config: Optional[ExactMatchConfig] = None
+    ):
+        self.config = config or default_config.exact_match
+        self.ngram_size = ngram_size if ngram_size is not None else self.config.min_ngram
+        self.min_match_words = min_match_words if min_match_words is not None else self.config.min_match_words
 
-    def generate_ngrams(self, words: list[str], n: int = None) -> list[tuple[str, int]]:
+    def generate_ngrams(self, words: List[str], n: int = None) -> List[Tuple[str, int]]:
         """Generate n-grams with their starting word index."""
         n = n or self.ngram_size
         ngrams = []
@@ -48,7 +57,7 @@ class ExactMatchEngine:
             ngrams.append((gram, i))
         return ngrams
 
-    def hash_ngrams(self, words: list[str], n: int = None) -> dict[str, list[int]]:
+    def hash_ngrams(self, words: List[str], n: int = None) -> dict[str, List[int]]:
         """Create a hash index of all n-grams for fast lookup."""
         n = n or self.ngram_size
         index = defaultdict(list)
@@ -59,11 +68,11 @@ class ExactMatchEngine:
 
     def find_matches(
         self,
-        query_words: list[str],
-        source_words: list[str],
+        query_words: List[str],
+        source_words: List[str],
         source_id: str = "",
         source_name: str = "",
-    ) -> list[ExactMatch]:
+    ) -> List[ExactMatch]:
         """
         Find exact n-gram matches between query and source documents.
         Uses hash-based matching with extension for longer matches.
@@ -97,9 +106,12 @@ class ExactMatchEngine:
         )
 
         # Filter by minimum length and common academic phrases
-        from app.engine.citation_excluder import WHITELIST_PHRASES
-        whitelist_set = set(p.lower().strip() for p in WHITELIST_PHRASES)
-        
+        if self.config.whitelist_filter:
+            from app.engine.citation_excluder import WHITELIST_PHRASES
+            whitelist_set = set(p.lower().strip() for p in WHITELIST_PHRASES)
+        else:
+            whitelist_set = set()
+
         filtered_matches = []
         for m in matches:
             if m.ngram_size < self.min_match_words:
@@ -108,36 +120,34 @@ class ExactMatchEngine:
             if text_lower in whitelist_set:
                 continue
             filtered_matches.append(m)
-        matches = filtered_matches
 
-        logger.info(f"Found {len(matches)} exact matches against {source_name}")
-        return matches
+        logger.info(f"Found {len(filtered_matches)} exact matches against {source_name}")
+        return filtered_matches
 
     def _extend_matches(
         self,
-        raw_matches: list[tuple[int, int]],
-        query_words: list[str],
-        source_words: list[str],
+        raw_matches: List[Tuple[int, int]],
+        query_words: List[str],
+        source_words: List[str],
         source_id: str,
         source_name: str,
-    ) -> list[ExactMatch]:
-        """Extend n-gram matches into longest possible contiguous sequences."""
+    ) -> List[ExactMatch]:
+        """
+        Extend n-gram matches into longest possible contiguous sequences.
+        Recovers longest valid exact regions without prematurely burning candidate tokens.
+        """
         if not raw_matches:
             return []
 
-        # Sort by query position
         raw_matches.sort()
-        extended = []
-        used = set()
+        candidate_spans = []
 
+        # Forward extension for each seed hit
         for q_start, s_start in raw_matches:
-            if q_start in used:
-                continue
-
-            # Extend match forward
             q_end = q_start + self.ngram_size
             s_end = s_start + self.ngram_size
 
+            # Extend forward as far as identical
             while (
                 q_end < len(query_words)
                 and s_end < len(source_words)
@@ -149,11 +159,7 @@ class ExactMatchEngine:
             match_len = q_end - q_start
             matched_text = " ".join(query_words[q_start:q_end])
 
-            # Mark positions as used
-            for pos in range(q_start, q_end):
-                used.add(pos)
-
-            extended.append(ExactMatch(
+            candidate_spans.append(ExactMatch(
                 query_start=q_start,
                 query_end=q_end,
                 source_start=s_start,
@@ -162,30 +168,54 @@ class ExactMatchEngine:
                 ngram_size=match_len,
                 source_id=source_id,
                 source_name=source_name,
-                confidence=min(1.0, match_len / 10),
+                confidence=1.0,
             ))
 
-        return self._merge_adjacent(extended)
+        # Merge overlapping/adjacent candidates while dynamically updating full matched text
+        return self._merge_adjacent(candidate_spans, query_words)
 
-    def _merge_adjacent(self, matches: list[ExactMatch]) -> list[ExactMatch]:
-        """Merge adjacent or overlapping exact matches."""
+    def _merge_adjacent(
+        self,
+        matches: List[ExactMatch],
+        query_words: List[str]
+    ) -> List[ExactMatch]:
+        """
+        Merge adjacent or overlapping exact matches.
+        Guarantees matched_text, ngram_size, offsets, and token counts
+        represent the complete merged region.
+        """
         if not matches:
             return []
 
-        matches.sort(key=lambda m: m.query_start)
-        merged = [matches[0]]
+        matches.sort(key=lambda m: (m.query_start, -m.ngram_size))
+        merged: List[ExactMatch] = []
 
-        for current in matches[1:]:
+        merge_gap = getattr(self.config, 'merge_gap', 1)
+
+        for current in matches:
+            if not merged:
+                merged.append(current)
+                continue
+
             last = merged[-1]
-            # If overlapping or adjacent (within 1 word gap)
-            if current.query_start <= last.query_end + 1:
+            # Check if current overlaps or is adjacent within merge_gap
+            if current.query_start <= last.query_end + merge_gap:
+                new_q_start = last.query_start
+                new_q_end = max(last.query_end, current.query_end)
+                new_s_start = last.source_start
+                new_s_end = max(last.source_end, current.source_end)
+                new_match_len = new_q_end - new_q_start
+
+                # Reconstruct full matched_text from query_words across the complete merged span
+                full_matched_text = " ".join(query_words[new_q_start:new_q_end])
+
                 merged[-1] = ExactMatch(
-                    query_start=last.query_start,
-                    query_end=max(last.query_end, current.query_end),
-                    source_start=last.source_start,
-                    source_end=max(last.source_end, current.source_end),
-                    matched_text=last.matched_text,
-                    ngram_size=max(last.query_end, current.query_end) - last.query_start,
+                    query_start=new_q_start,
+                    query_end=new_q_end,
+                    source_start=new_s_start,
+                    source_end=new_s_end,
+                    matched_text=full_matched_text,
+                    ngram_size=new_match_len,
                     source_id=last.source_id,
                     source_name=last.source_name,
                     confidence=max(last.confidence, current.confidence),
@@ -195,8 +225,8 @@ class ExactMatchEngine:
 
         return merged
 
-    def calculate_exact_score(self, matches: list[ExactMatch], total_words: int) -> float:
-        """Calculate the percentage of text that is exactly matched."""
+    def calculate_exact_score(self, matches: List[ExactMatch], total_words: int) -> float:
+        """Calculate the unique percentage of text that is exactly matched."""
         if total_words == 0:
             return 0.0
         matched_words = set()

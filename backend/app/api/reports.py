@@ -319,3 +319,49 @@ async def get_dashboard_stats(
         average_score=round(float(avg_score), 1), high_risk_count=high_risk,
         recent_reports=recent,
     )
+
+
+@router.get("/report/{report_id}/explain")
+async def explain_report(
+    report_id: str,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Get structured explainability metadata for every suspicious span in a report."""
+    result = await db.execute(
+        select(Report).join(Document).where(
+            Report.id == report_id, Document.user_id == user.id
+        )
+    )
+    report = result.scalar_one_or_none()
+    if not report:
+        raise HTTPException(404, "Report not found")
+
+    spans_metadata = []
+    if report.highlights and "spans" in report.highlights:
+        for s in report.highlights["spans"]:
+            spans_metadata.append({
+                "match_type": s.get("match_type", "exact"),
+                "confidence": s.get("confidence_score", 1.0),
+                "citation_status": s.get("group_type", "Uncited Copy"),
+                "rarity": s.get("rarity_score", 1.0),
+                "section": s.get("section", "Body"),
+                "primary_source": s.get("source_name", "Unknown Source"),
+                "secondary_sources": [o.get("source_name") for o in s.get("overlapping_sources", [])],
+                "semantic_score": s.get("similarity", 1.0),
+                "token_count": len(s.get("matched_text", "").split()),
+                "engine_version": "2.0.0",
+                "start_char": s.get("start_char"),
+                "end_char": s.get("end_char"),
+            })
+
+    return {
+        "report_id": report.id,
+        "document_id": report.document_id,
+        "overall_score": report.overall_score,
+        "risk_level": report.risk_level,
+        "engine_version": "2.0.0",
+        "scoring_version": "2.0.0",
+        "spans_explainability": spans_metadata,
+    }
+

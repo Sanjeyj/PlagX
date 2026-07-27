@@ -1,8 +1,10 @@
 """Authentication service with JWT tokens and password hashing."""
 
+import bcrypt
+import logging
+from typing import Optional
 from datetime import datetime, timedelta, timezone
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from fastapi import Depends, HTTPException
@@ -13,17 +15,24 @@ from app.database import get_db
 from app.models.user import User
 from app.schemas.user import UserCreate, TokenData
 
+logger = logging.getLogger(__name__)
 settings = get_settings()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    """Hash a password using bcrypt."""
+    salt = bcrypt.gensalt(12)
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    """Verify a password against a bcrypt hash."""
+    try:
+        return bcrypt.checkpw(plain.encode('utf-8'), hashed.encode('utf-8'))
+    except Exception as e:
+        logger.error(f"Password verification error: {e}")
+        return False
 
 
 def create_access_token(user_id: str) -> str:
@@ -50,9 +59,12 @@ def decode_token(token: str) -> TokenData:
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: AsyncSession = Depends(get_db),
 ) -> User:
+    """Strict authentication for protected user endpoints."""
+    if not credentials or not credentials.credentials:
+        raise HTTPException(status_code=401, detail="Not authenticated")
     token_data = decode_token(credentials.credentials)
     result = await db.execute(select(User).where(User.id == token_data.user_id))
     user = result.scalar_one_or_none()
@@ -61,14 +73,45 @@ async def get_current_user(
     return user
 
 
+async def get_guest_or_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    db: AsyncSession = Depends(get_db),
+) -> User:
+    """Authenticate user, or fall back to default guest user for direct document scanning."""
+    if credentials and credentials.credentials:
+        try:
+            token_data = decode_token(credentials.credentials)
+            result = await db.execute(select(User).where(User.id == token_data.user_id))
+            user = result.scalar_one_or_none()
+            if user and user.is_active:
+                return user
+        except Exception:
+            pass
+
+    # Guest user fallback for direct document scanning
+    result = await db.execute(select(User).where(User.email == "guest@plagx.internal"))
+    guest = result.scalar_one_or_none()
+    if not guest:
+        guest = User(
+            email="guest@plagx.internal",
+            full_name="Guest Scanner",
+            hashed_password=hash_password("guestpass123!"),
+        )
+        db.add(guest)
+        await db.commit()
+        await db.refresh(guest)
+    return guest
+
+
 async def register_user(db: AsyncSession, data: UserCreate) -> User:
-    existing = await db.execute(select(User).where(User.email == data.email))
+    clean_email = data.email.lower().strip()
+    existing = await db.execute(select(User).where(User.email == clean_email))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")
 
     user = User(
-        email=data.email,
-        full_name=data.full_name,
+        email=clean_email,
+        full_name=data.full_name.strip(),
         hashed_password=hash_password(data.password),
     )
     db.add(user)
@@ -78,7 +121,8 @@ async def register_user(db: AsyncSession, data: UserCreate) -> User:
 
 
 async def authenticate_user(db: AsyncSession, email: str, password: str) -> User:
-    result = await db.execute(select(User).where(User.email == email))
+    clean_email = email.lower().strip()
+    result = await db.execute(select(User).where(User.email == clean_email))
     user = result.scalar_one_or_none()
     if not user or not verify_password(password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid email or password")

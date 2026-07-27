@@ -319,10 +319,8 @@ export default function ReportPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4 border-b pb-4">
         <div className="flex items-center gap-3">
-          <Link href="/documents">
-            <Button variant="ghost" size="icon" className="rounded-full hover:bg-muted">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
+          <Link href="/documents" className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "rounded-full hover:bg-muted")}>
+            <ArrowLeft className="h-4 w-4" />
           </Link>
           <div>
             <h2 className="text-xl font-bold flex items-center gap-2">

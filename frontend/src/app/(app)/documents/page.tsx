@@ -4,22 +4,14 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { FileText, Trash2, Eye, Clock, CheckCircle, Loader2, AlertCircle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import api from "@/lib/api";
 import type { Document } from "@/lib/types";
-
-function statusIcon(status: string) {
-  switch (status) {
-    case "completed": return <CheckCircle className="h-4 w-4 text-green-500" />;
-    case "processing": return <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />;
-    case "failed": return <AlertCircle className="h-4 w-4 text-red-500" />;
-    default: return <Clock className="h-4 w-4 text-muted-foreground" />;
-  }
-}
 
 function statusBadge(status: string) {
   switch (status) {
@@ -69,7 +61,7 @@ export default function DocumentsPage() {
           <h2 className="text-2xl font-bold">My Documents</h2>
           <p className="text-muted-foreground">{documents.length} document{documents.length !== 1 ? "s" : ""} uploaded</p>
         </div>
-        <Link href="/upload"><Button className="gap-2">Upload New</Button></Link>
+        <Link href="/upload" className={cn(buttonVariants({ variant: "default" }), "gap-2")}>Upload New</Link>
       </div>
 
       {documents.length === 0 ? (
@@ -78,7 +70,7 @@ export default function DocumentsPage() {
             <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <p className="text-lg font-medium">No documents yet</p>
             <p className="text-muted-foreground mt-1">Upload a document to get started</p>
-            <Link href="/upload"><Button className="mt-4">Upload Document</Button></Link>
+            <Link href="/upload" className={cn(buttonVariants({ variant: "default" }), "mt-4")}>Upload Document</Link>
           </CardContent>
         </Card>
       ) : (
@@ -106,8 +98,8 @@ export default function DocumentsPage() {
                     <div className="flex items-center gap-3 flex-shrink-0">
                       {statusBadge(doc.status)}
                       {doc.status === "completed" && (
-                        <Link href={`/report/${doc.id}?by=doc`}>
-                          <Button variant="outline" size="sm" className="gap-1"><Eye className="h-3 w-3" /> Report</Button>
+                        <Link href={`/report/${doc.id}?by=doc`} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "gap-1")}>
+                          <Eye className="h-3 w-3" /> Report
                         </Link>
                       )}
                       <Button variant="ghost" size="icon" className="text-red-500 hover:text-red-600 h-8 w-8" onClick={() => handleDelete(doc.id)}>

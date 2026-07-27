@@ -6,9 +6,10 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { FileText, AlertTriangle, TrendingUp, Upload, ArrowRight, BarChart3, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import api from "@/lib/api";
 import type { DashboardStats } from "@/lib/types";
 
@@ -113,8 +114,8 @@ export default function DashboardPage() {
           <Card className="h-full">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Recent Reports</CardTitle>
-              <Link href="/documents">
-                <Button variant="ghost" size="sm" className="gap-1">View All <ArrowRight className="h-3 w-3" /></Button>
+              <Link href="/documents" className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1")}>
+                View All <ArrowRight className="h-3 w-3" />
               </Link>
             </CardHeader>
             <CardContent>

@@ -9,7 +9,7 @@ from app.database import get_db
 from app.models.user import User
 from app.models.document import Document, DocumentStatus
 from app.schemas.document import DocumentResponse, DocumentListResponse, DocumentUploadResponse, CheckStatusResponse
-from app.services.auth_service import get_current_user
+from app.services.auth_service import get_current_user, get_guest_or_current_user
 from app.services.file_service import FileService
 
 router = APIRouter(prefix="/api", tags=["Documents"])
@@ -29,7 +29,7 @@ def _doc_to_response(doc: Document) -> DocumentResponse:
 async def upload_document(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_guest_or_current_user),
 ):
     """Upload a document for plagiarism checking."""
     file_info = await file_service.save_upload(file)
@@ -60,7 +60,7 @@ async def start_check(
     document_id: str,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_guest_or_current_user),
 ):
     """Start plagiarism check on a document."""
     result = await db.execute(
