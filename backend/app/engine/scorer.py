@@ -58,6 +58,10 @@ class HybridScorer:
     def __init__(self, config: Optional[ScoringConfig] = None, **kwargs):
         self.config = config or default_config.scoring
 
+    def normalize_score(self, score: float) -> float:
+        """Normalize score percentage between 0.0 and 100.0 rounded to 1 decimal place."""
+        return round(min(100.0, max(0.0, float(score))), 1)
+
     def calculate_score(
         self,
         exact_score: float,
