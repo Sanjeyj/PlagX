@@ -133,7 +133,7 @@ async def list_documents(
     page: int = 1,
     page_size: int = 20,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_guest_or_current_user),
 ):
     """List user's documents with pagination."""
     offset = (page - 1) * page_size
@@ -162,7 +162,7 @@ async def list_documents(
 async def get_document(
     document_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_guest_or_current_user),
 ):
     result = await db.execute(
         select(Document)
@@ -179,7 +179,7 @@ async def get_document(
 async def delete_document(
     document_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_guest_or_current_user),
 ):
     result = await db.execute(
         select(Document).where(Document.id == document_id, Document.user_id == user.id)
@@ -198,7 +198,7 @@ async def delete_document(
 async def check_status(
     document_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_guest_or_current_user),
 ):
     result = await db.execute(
         select(Document).where(Document.id == document_id, Document.user_id == user.id)

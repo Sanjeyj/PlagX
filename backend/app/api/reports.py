@@ -14,7 +14,7 @@ from app.schemas.report import (
     ReportResponse, ReportSummaryResponse, HighlightSpan,
     MatchedSourceResponse, ParagraphScore, DashboardStatsResponse,
 )
-from app.services.auth_service import get_current_user
+from app.services.auth_service import get_guest_or_current_user
 from app.services.report_service import ReportService
 
 router = APIRouter(prefix="/api", tags=["Reports"])
@@ -25,7 +25,7 @@ report_service = ReportService()
 async def get_report(
     report_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_guest_or_current_user),
 ):
     """Get full report data."""
     result = await db.execute(
@@ -101,22 +101,21 @@ async def get_report(
                     top_source_id=s.get("top_source_id"),
                 ))
         source_responses.append(MatchedSourceResponse(
-            source_index=src.source_index,
-            source_name=src.source_name,
-            source_url=src.source_url,
-            source_type=src.source_type,
-            match_percentage=src.match_percentage,
-            color=src.color,
-            matched_spans=src_spans,
+            id=src.id, source_name=src.source_name, source_url=src.source_url,
+            source_type=src.source_type, match_percentage=src.match_percentage,
+            matched_words=src.matched_words, color=src.color,
+            source_index=src.source_index, matched_spans=src_spans,
         ))
 
     return {
-        "id": str(report.id),
-        "document_id": str(report.document_id),
-        "document_name": doc.original_name if doc else "",
+        "id": report.id,
+        "document_id": report.document_id,
+        "document_name": doc.original_name if doc else "Document",
         "overall_score": report.overall_score,
-        "exact_score": report.exact_score,
-        "semantic_score": report.semantic_score,
+        "exact_match_score": report.exact_match_score,
+        "paraphrase_score": report.paraphrase_score,
+        "ai_generated_score": report.ai_generated_score,
+        "cited_score": report.cited_score,
         "source_density_score": report.source_density_score,
         "risk_level": report.risk_level,
         "total_words": report.total_words,
@@ -136,7 +135,7 @@ async def get_report(
 async def get_report_html(
     report_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_guest_or_current_user),
 ):
     """Get rendered HTML report."""
     result = await db.execute(
@@ -159,13 +158,13 @@ async def get_report_html(
 async def download_report_pdf(
     report_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_guest_or_current_user),
 ):
     """Download PDF report."""
     import logging
     logger = logging.getLogger(__name__)
     
-    logger.info(f"PDF download request received for report_id={report_id} by user={user.username}")
+    logger.info(f"PDF download request received for report_id={report_id} by user={user.email}")
     result = await db.execute(
         select(Report).join(Document).where(
             Report.id == report_id, Document.user_id == user.id
@@ -216,13 +215,13 @@ async def download_report_pdf(
 async def regenerate_report_pdf(
     report_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_guest_or_current_user),
 ):
     """Manually trigger PDF regeneration for a report."""
     import logging
     logger = logging.getLogger(__name__)
 
-    logger.info(f"Manual PDF regeneration requested for report_id={report_id} by user={user.username}")
+    logger.info(f"Manual PDF regeneration requested for report_id={report_id} by user={user.email}")
     result = await db.execute(
         select(Report).join(Document).where(
             Report.id == report_id, Document.user_id == user.id
@@ -250,7 +249,7 @@ async def regenerate_report_pdf(
 async def get_report_by_document(
     document_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_guest_or_current_user),
 ):
     """Get report by document ID."""
     result = await db.execute(
@@ -269,7 +268,7 @@ async def get_report_by_document(
 @router.get("/dashboard/stats", response_model=DashboardStatsResponse)
 async def get_dashboard_stats(
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_guest_or_current_user),
 ):
     """Get dashboard statistics."""
     # Total documents
@@ -325,7 +324,7 @@ async def get_dashboard_stats(
 async def explain_report(
     report_id: str,
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_guest_or_current_user),
 ):
     """Get structured explainability metadata for every suspicious span in a report."""
     result = await db.execute(
@@ -364,4 +363,3 @@ async def explain_report(
         "scoring_version": "2.0.0",
         "spans_explainability": spans_metadata,
     }
-

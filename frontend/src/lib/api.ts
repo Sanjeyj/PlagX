@@ -9,7 +9,7 @@ const api = axios.create({
   },
 });
 
-// Interceptor to add auth token
+// Interceptor to add auth token if present
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
     const token = localStorage.getItem('token');
@@ -20,21 +20,10 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Interceptor to handle auth errors safely
+// Interceptor to handle errors without forcing redirects
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const requestUrl = error.config?.url || '';
-    const isAuthRoute = requestUrl.includes('/auth/login') || requestUrl.includes('/auth/register');
-
-    if (error.response?.status === 401 && typeof window !== 'undefined' && !isAuthRoute) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      const currentPath = window.location.pathname;
-      if (currentPath !== '/login' && currentPath !== '/signup') {
-        window.location.href = '/login';
-      }
-    }
     return Promise.reject(error);
   }
 );
