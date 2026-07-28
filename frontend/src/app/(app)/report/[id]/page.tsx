@@ -3,15 +3,16 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Download, FileText, ArrowLeft, Info, Eye, EyeOff, ShieldAlert, CheckCircle2 } from "lucide-react";
+import { Download, FileText, ArrowLeft, Info, ShieldAlert, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { cn } from "@/lib/utils";
 import type { Report, HighlightSpan, MatchedSource } from "@/lib/types";
 
 const SOURCE_COLORS = [

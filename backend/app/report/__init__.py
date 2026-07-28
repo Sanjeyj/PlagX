@@ -142,24 +142,31 @@ class HighlightInjector:
         return "\n".join(wrapped) if wrapped else html_content
 
     def generate_source_panel_html(self, sources: list) -> str:
-        """Generate the source list panel HTML."""
+        """Generate the source list panel as table rows for the PDF report."""
         if not sources:
-            return '<div class="no-sources">No sources detected</div>'
+            return '<tr><td colspan="4" style="text-align:center;padding:20px;color:#9ca3af;">No sources detected</td></tr>'
 
-        items = []
+        rows = []
         for src in sources:
             color = src.color if hasattr(src, 'color') else SOURCE_COLORS[src.source_index % len(SOURCE_COLORS)]
-            items.append(
-                f'<div class="source-item" data-source-index="{src.source_index}" '
-                f'style="display: flex; align-items: center; padding: 10px 14px; '
-                f'border-left: 4px solid {color}; margin-bottom: 8px; '
-                f'background: rgba(0,0,0,0.02); border-radius: 0 8px 8px 0; cursor: pointer;">'
-                f'<span class="source-color" style="width: 12px; height: 12px; '
-                f'border-radius: 50%; background: {color}; margin-right: 10px; flex-shrink: 0;"></span>'
-                f'<span class="source-name" style="flex: 1; font-size: 14px;">'
-                f'[{src.source_index + 1}] {html.escape(src.source_name)}</span>'
-                f'<span class="source-pct" style="font-weight: 600; color: {color};">'
-                f'{src.match_percentage:.1f}%</span>'
+            pct = src.match_percentage
+            bar_width = min(int(pct * 1.2), 120)  # max 120px at 100%
+
+            rows.append(
+                f'<tr>'
+                f'<td>'
+                f'<span class="src-badge" style="background:{color};">{src.source_index + 1}</span>'
+                f'</td>'
+                f'<td style="font-size:12px;color:#111827;">{html.escape(src.source_name)}</td>'
+                f'<td>'
+                f'<div class="src-bar-wrap">'
+                f'<div class="src-bar" style="width:{bar_width}px;background:{color};"></div>'
                 f'</div>'
+                f'</td>'
+                f'<td style="text-align:right;font-weight:700;color:{color};font-family:monospace;">'
+                f'{pct:.1f}%'
+                f'</td>'
+                f'</tr>'
             )
-        return "\n".join(items)
+        return "\n".join(rows)
+

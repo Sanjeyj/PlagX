@@ -101,10 +101,9 @@ async def get_report(
                     top_source_id=s.get("top_source_id"),
                 ))
         source_responses.append(MatchedSourceResponse(
-            id=src.id, source_name=src.source_name, source_url=src.source_url,
+            source_name=src.source_name, source_url=src.source_url,
             source_type=src.source_type, match_percentage=src.match_percentage,
-            matched_words=src.matched_words, color=src.color,
-            source_index=src.source_index, matched_spans=src_spans,
+            color=src.color, source_index=src.source_index, matched_spans=src_spans,
         ))
 
     return {
@@ -112,10 +111,10 @@ async def get_report(
         "document_id": report.document_id,
         "document_name": doc.original_name if doc else "Document",
         "overall_score": report.overall_score,
-        "exact_match_score": report.exact_match_score,
-        "paraphrase_score": report.paraphrase_score,
-        "ai_generated_score": report.ai_generated_score,
-        "cited_score": report.cited_score,
+        "exact_match_score": getattr(report, "exact_score", 0.0),
+        "paraphrase_score": getattr(report, "semantic_score", 0.0),
+        "ai_generated_score": getattr(report, "ai_score", 0.0),
+        "cited_score": 0.0,
         "source_density_score": report.source_density_score,
         "risk_level": report.risk_level,
         "total_words": report.total_words,

@@ -36,7 +36,7 @@ class HTMLReportBuilder:
             result.document_map.paragraphs if result.document_map else None,
         )
 
-        # Generate sources panel HTML
+        # Generate sources panel HTML (table rows)
         sources_html = self.injector.generate_source_panel_html(result.sources)
 
         # Build paragraph scores with text preview
@@ -61,6 +61,8 @@ class HTMLReportBuilder:
             total_pages=result.total_pages,
             total_sources=len(result.sources),
             matched_words=result.matched_words,
+            ai_score=getattr(result, "ai_score", 0) or 0,
+            ai_confidence=getattr(result, "ai_confidence", "Unknown") or "Unknown",
             sources_html=sources_html,
             highlighted_html=highlighted_html,
             paragraph_scores=para_scores_with_text,
